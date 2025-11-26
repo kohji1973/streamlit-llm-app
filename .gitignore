@@ -134,3 +134,6 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Streamlit app data (temporary files)
+taxi_data/*.json
