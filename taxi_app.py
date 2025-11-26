@@ -384,42 +384,15 @@ def frontend_page():
         if latest_facilities:
             st.session_state.facilities = latest_facilities
         
-        # 施設設定セクション（美しいカードデザイン）
-        st.markdown("""
-        <style>
-        .facility-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 15px;
-            padding: 1.5rem;
-            margin: 1rem 0;
-            color: white;
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        }
-        .facility-card h3 {
-            color: white;
-            margin-bottom: 1rem;
-        }
-        .facility-info-box {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-            padding: 1rem;
-            margin: 1rem 0;
-            backdrop-filter: blur(10px);
-        }
-        </style>
-        """, unsafe_allow_html=True)
-        
         # 現在の施設情報を表示（登録済みの場合）
         current_facility_id = st.session_state.get('current_facility_id')
         if current_facility_id and current_facility_id in st.session_state.facilities:
             current_facility_info = st.session_state.facilities[current_facility_id]
+            facility_name = current_facility_info.get('name', '未設定')
             st.markdown(f"""
-            <div class="facility-card">
-                <h3>🏢 現在の施設</h3>
-                <div class="facility-info-box">
-                    <p style="font-size: 1rem; margin: 0; opacity: 0.95;">この端末で使用中の施設です</p>
-                    <p style="font-size: 0.9rem; margin: 0.5rem 0 0 0; opacity: 0.9;">ID: {current_facility_id}</p>
-                </div>
+            <div style="text-align: center; margin: 1.5rem 0;">
+                <p style="font-size: 1.8rem; font-weight: bold; margin: 0; color: #333;">{facility_name}</p>
+                <p style="font-size: 1rem; margin: 0.5rem 0 0 0; color: #666;">ID: {current_facility_id}</p>
             </div>
             """, unsafe_allow_html=True)
         
