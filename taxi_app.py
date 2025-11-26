@@ -391,8 +391,8 @@ def frontend_page():
             facility_name = current_facility_info.get('name', '未設定')
             st.markdown(f"""
             <div style="text-align: center; margin: 1.5rem 0;">
-                <p style="font-size: 1.8rem; font-weight: bold; margin: 0; color: #333;">{facility_name}</p>
-                <p style="font-size: 1rem; margin: 0.5rem 0 0 0; color: #666;">ID: {current_facility_id}</p>
+                <p style="font-size: 2.5rem; font-weight: bold; margin: 0; color: #bbbbbb;">{facility_name}</p>
+                <p style="font-size: 1rem; margin: 0.5rem 0 0 0; color: #bbbbbb;">ID: {current_facility_id}</p>
             </div>
             """, unsafe_allow_html=True)
         
