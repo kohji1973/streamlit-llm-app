@@ -387,8 +387,8 @@ def frontend_page():
         if latest_facilities:
             st.session_state.facilities = latest_facilities
         
-        # 施設設定セクション（折りたたみ可能）
-        with st.expander("🏢 施設情報設定", expanded=False):
+        # 施設設定セクション（折りたたみ可能、デフォルトで開く）
+        with st.expander("🏢 施設情報設定", expanded=True):
             st.markdown("### 施設の登録・編集")
             
             # 既存の施設一覧を表示
