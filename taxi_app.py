@@ -251,12 +251,9 @@ def frontend_page():
             min-height: auto;
         }
         .taxi-title {
-            font-size: 3rem;
+            font-size: 2rem;
             font-weight: bold;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: white;
             margin-bottom: 1.5rem;
             text-align: center;
         }
@@ -420,7 +417,7 @@ def frontend_page():
             <div class="facility-card">
                 <h3>🏢 現在の施設</h3>
                 <div class="facility-info-box">
-                    <p style="font-size: 1.3rem; font-weight: bold; margin: 0;">{current_facility_info.get('name', '未設定')}</p>
+                    <p style="font-size: 1rem; margin: 0; opacity: 0.95;">この端末で使用中の施設です</p>
                     <p style="font-size: 0.9rem; margin: 0.5rem 0 0 0; opacity: 0.9;">ID: {current_facility_id}</p>
                 </div>
             </div>
@@ -439,7 +436,7 @@ def frontend_page():
             
             col3, col4 = st.columns(2)
             with col3:
-                if st.button("💾 施設を登録・更新", type="primary", use_container_width=True):
+                if st.button("💾 施設を登録・更新", use_container_width=True):
                     if facility_id_input and facility_name_input:
                         if 'facilities' not in st.session_state:
                             st.session_state.facilities = {}
@@ -486,7 +483,7 @@ def frontend_page():
         # メインコンテナ（上部に配置、中央揃え）
         st.markdown('<div class="taxi-main-container">', unsafe_allow_html=True)
         
-        st.markdown('<div class="taxi-title">🚕 takutakutaxi</div>', unsafe_allow_html=True)
+        st.markdown('<div class="taxi-title">taxiが必要なときは下のボタンをタップしてください。</div>', unsafe_allow_html=True)
         
         # 中央の大きなボタン
         st.markdown('<div class="taxi-button-container">', unsafe_allow_html=True)
