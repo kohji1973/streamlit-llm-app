@@ -28,6 +28,7 @@ st.set_page_config(
 DATA_DIR = "taxi_data"
 REQUESTS_FILE = os.path.join(DATA_DIR, "requests.json")
 DRIVERS_FILE = os.path.join(DATA_DIR, "drivers.json")
+FACILITIES_FILE = os.path.join(DATA_DIR, "facilities.json")
 
 # データディレクトリの作成
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -130,12 +131,38 @@ def save_drivers(drivers: Dict):
         st.error(f"データ保存エラー: {e}")
 
 
+def load_facilities() -> Dict:
+    """JSONファイルから施設情報を読み込む"""
+    if os.path.exists(FACILITIES_FILE):
+        try:
+            with open(FACILITIES_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            return {}
+        except Exception as e:
+            print(f"施設データ読み込みエラー: {e}")
+            return {}
+    return {}
+
+
+def save_facilities(facilities: Dict):
+    """施設情報をJSONファイルに保存"""
+    try:
+        with open(FACILITIES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(facilities, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        st.error(f"施設データ保存エラー: {e}")
+
+
 # セッション状態の初期化（ファイルから読み込み）
 if 'requests' not in st.session_state:
     st.session_state.requests = load_requests()
 
 if 'drivers' not in st.session_state:
     st.session_state.drivers = load_drivers()
+
+if 'facilities' not in st.session_state:
+    st.session_state.facilities = load_facilities()
 
 if 'last_update' not in st.session_state:
     st.session_state.last_update = time.time()
@@ -355,8 +382,90 @@ def frontend_page():
         if 'front_lon' not in st.session_state:
             st.session_state.front_lon = 139.6503  # 東京駅の例
         
+        # 施設情報の読み込み
+        latest_facilities = load_facilities()
+        if latest_facilities:
+            st.session_state.facilities = latest_facilities
+        
+        # 施設設定セクション（折りたたみ可能）
+        with st.expander("🏢 施設情報設定", expanded=False):
+            st.markdown("### 施設の登録・編集")
+            
+            # 既存の施設一覧を表示
+            if st.session_state.facilities:
+                st.markdown("**登録済み施設:**")
+                for facility_id, facility_info in st.session_state.facilities.items():
+                    st.markdown(f"- **{facility_info.get('name', '未設定')}** (ID: {facility_id})")
+                st.markdown("---")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                facility_id_input = st.text_input("施設ID", placeholder="例: facility_001", key="facility_id_input")
+            with col2:
+                facility_name_input = st.text_input("施設名", placeholder="例: ホテルABC", key="facility_name_input")
+            
+            col3, col4 = st.columns(2)
+            with col3:
+                if st.button("💾 施設を登録・更新", type="primary", use_container_width=True):
+                    if facility_id_input and facility_name_input:
+                        if 'facilities' not in st.session_state:
+                            st.session_state.facilities = {}
+                        st.session_state.facilities[facility_id_input] = {
+                            'id': facility_id_input,
+                            'name': facility_name_input,
+                            'lat': st.session_state.front_lat,
+                            'lon': st.session_state.front_lon
+                        }
+                        save_facilities(st.session_state.facilities)
+                        st.success(f"✅ 施設「{facility_name_input}」を登録しました")
+                        time.sleep(0.5)
+                        st.rerun()
+                    else:
+                        st.error("施設IDと施設名を入力してください")
+            
+            with col4:
+                if st.button("🗑️ 施設を削除", use_container_width=True):
+                    if facility_id_input and facility_id_input in st.session_state.facilities:
+                        del st.session_state.facilities[facility_id_input]
+                        save_facilities(st.session_state.facilities)
+                        st.success(f"✅ 施設ID「{facility_id_input}」を削除しました")
+                        time.sleep(0.5)
+                        st.rerun()
+                    else:
+                        st.error("削除する施設IDを入力してください")
+            
+            st.markdown("---")
+            st.markdown("### 使用する施設を選択")
+            
+            # 施設選択
+            if st.session_state.facilities:
+                facility_options = {f"{info.get('name', '未設定')} (ID: {fid})": fid 
+                                   for fid, info in st.session_state.facilities.items()}
+                selected_facility_display = st.selectbox(
+                    "この端末で使用する施設を選択",
+                    options=list(facility_options.keys()),
+                    key="facility_selector"
+                )
+                selected_facility_id = facility_options[selected_facility_display]
+                st.session_state.current_facility_id = selected_facility_id
+                st.session_state.current_facility_name = st.session_state.facilities[selected_facility_id].get('name', '未設定')
+                
+                # 選択した施設の位置情報を更新
+                facility_info = st.session_state.facilities[selected_facility_id]
+                st.session_state.front_lat = facility_info.get('lat', 35.6762)
+                st.session_state.front_lon = facility_info.get('lon', 139.6503)
+            else:
+                st.info("💡 まず施設を登録してください")
+                st.session_state.current_facility_id = None
+                st.session_state.current_facility_name = None
+        
         # メインコンテナ（上部に配置、中央揃え）
         st.markdown('<div class="taxi-main-container">', unsafe_allow_html=True)
+        
+        # 現在選択されている施設名を表示
+        if st.session_state.get('current_facility_name'):
+            st.markdown(f'<div style="text-align: center; font-size: 1.2rem; margin-bottom: 0.5rem; color: #666;">🏢 {st.session_state.current_facility_name}</div>', unsafe_allow_html=True)
+        
         st.markdown('<div class="taxi-title">🚕 takutakutaxi</div>', unsafe_allow_html=True)
         
         # 中央の大きなボタン
@@ -429,12 +538,19 @@ def frontend_page():
         
         # ボタンがクリックされたときの処理
         if button_clicked:
+            # 施設情報の確認
+            if not st.session_state.get('current_facility_id'):
+                st.error("⚠️ 施設を選択してください。施設情報設定から施設を登録・選択してください。")
+                st.stop()
+            
             # 新しいリクエストを作成
             request_id = str(uuid.uuid4())
             request_data = {
                 'id': request_id,
                 'front_lat': st.session_state.front_lat,
                 'front_lon': st.session_state.front_lon,
+                'facility_id': st.session_state.current_facility_id,
+                'facility_name': st.session_state.current_facility_name,
                 'destination': 'フロント',  # デフォルト値
                 'passenger_name': '',
                 'special_requests': '',
@@ -484,13 +600,22 @@ def frontend_page():
         st.markdown('</div>', unsafe_allow_html=True)
         
         # 現在のリクエスト状況（古い順に表示、departedとcompleted状態は除外）
+        # 自分の施設のリクエストのみを表示
+        current_facility_id = st.session_state.get('current_facility_id')
         active_requests = []
         if st.session_state.requests:
             # pending、assigned、arrived状態のリクエストを取得（departedとcompleted状態は除外）
             for req_id, req_data in st.session_state.requests.items():
                 status = req_data.get('status')
+                # 自分の施設のリクエストのみを表示（施設IDが設定されていない場合は全て表示）
                 if status in ['pending', 'assigned', 'arrived']:
-                    active_requests.append((req_id, req_data))
+                    if current_facility_id:
+                        # 施設IDが設定されている場合、自分の施設のリクエストのみ
+                        if req_data.get('facility_id') == current_facility_id:
+                            active_requests.append((req_id, req_data))
+                    else:
+                        # 施設IDが設定されていない場合、全てのリクエストを表示（後方互換性）
+                        active_requests.append((req_id, req_data))
             
             # 状態優先順位でソート（到着済み > 向かっています > 待機中）、同じ状態内では古い順
             status_priority = {'arrived': 0, 'assigned': 1, 'pending': 2}
@@ -506,10 +631,12 @@ def frontend_page():
                 if idx > 1:
                     st.markdown('<div style="margin: 0.2rem 0;"></div>', unsafe_allow_html=True)
                 
+                facility_name_display = req_data.get('facility_name', '')
                 if req_data['status'] == 'pending':
+                    facility_info = f"<br>🏢 {facility_name_display}" if facility_name_display else ""
                     st.markdown(f"""
                     <div class="taxi-success-info">
-                        📋 リクエスト #{idx} - リクエスト時刻: {req_data['created_at'].strftime('%H:%M:%S')}<br>
+                        📋 リクエスト #{idx} - リクエスト時刻: {req_data['created_at'].strftime('%H:%M:%S')}{facility_info}<br>
                         ⏳ ドライバーを探しています...
                     </div>
                     """, unsafe_allow_html=True)
@@ -517,10 +644,11 @@ def frontend_page():
                     driver_name_display = req_data.get('driver_name', '未設定')
                     car_number_display = req_data.get('car_number', '未設定')
                     arrival_time_display = req_data.get('estimated_arrival', 0)
+                    facility_info = f"<br>🏢 {facility_name_display}" if facility_name_display else ""
                     st.markdown(f"""
                     <div class="taxi-success">
                         🚕 リクエスト #{idx} - タクシーが向かっています<br>
-                        📅 リクエスト時刻: {req_data['created_at'].strftime('%H:%M:%S')}<br>
+                        📅 リクエスト時刻: {req_data['created_at'].strftime('%H:%M:%S')}{facility_info}<br>
                         <div class="request-info-line">
                             <span class="request-info-item">👤 {driver_name_display}</span>
                             <span class="request-info-item">🚗 {car_number_display}</span>
@@ -531,10 +659,11 @@ def frontend_page():
                 elif req_data['status'] == 'arrived':
                     driver_name_display = req_data.get('driver_name', '未設定')
                     car_number_display = req_data.get('car_number', '未設定')
+                    facility_info = f"<br>🏢 {facility_name_display}" if facility_name_display else ""
                     st.markdown(f"""
                     <div class="taxi-arrived">
                         ✅ リクエスト #{idx} - 到着しました<br>
-                        📅 リクエスト時刻: {req_data['created_at'].strftime('%H:%M:%S')}<br>
+                        📅 リクエスト時刻: {req_data['created_at'].strftime('%H:%M:%S')}{facility_info}<br>
                         <div class="request-info-line">
                             <span class="request-info-item">👤 {driver_name_display}</span>
                             <span class="request-info-item">🚗 {car_number_display}</span>
@@ -730,11 +859,21 @@ def driver_page():
             st.markdown(f"### 🚕 現在のリクエスト")
             st.markdown("---")
             
+            # 施設名を一番上に大きく表示
+            facility_name = request_data.get('facility_name', '未設定')
+            if facility_name and facility_name != '未設定':
+                st.markdown(f"### 🏢 {facility_name}")
+                st.markdown("---")
+            
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown(f"**リクエストID:** {request_id[:8]}...")
                 st.markdown(f"**リクエスト時刻:** {request_data['created_at'].strftime('%H:%M:%S')}")
-                st.markdown(f"**リクエスト元:** フロント")
+                # リクエスト元は施設名があれば施設名を表示、なければ「フロント」
+                if facility_name and facility_name != '未設定':
+                    st.markdown(f"**リクエスト元:** {facility_name}")
+                else:
+                    st.markdown(f"**リクエスト元:** フロント")
             with col2:
                 st.markdown(f"**車番:** {request_data.get('car_number', '未設定')}")
                 if request_data.get('estimated_arrival'):
@@ -930,10 +1069,14 @@ def driver_page():
                     
                     # リクエスト選択用のセレクトボックス
                     if request_distances:
-                        request_options = [
-                            f"リクエスト #{idx} - 距離: {distance:.2f}km ({req_data['created_at'].strftime('%H:%M:%S')})"
-                            for idx, (req_id, distance, req_data) in enumerate(request_distances, 1)
-                        ]
+                        request_options = []
+                        for idx, (req_id, distance, req_data) in enumerate(request_distances, 1):
+                            facility_name = req_data.get('facility_name', '')
+                            facility_info = f" - {facility_name}" if facility_name else ""
+                            request_options.append(
+                                f"リクエスト #{idx}{facility_info} - 距離: {distance:.2f}km ({req_data['created_at'].strftime('%H:%M:%S')})"
+                            )
+                        
                         selected_index = st.selectbox(
                             "📋 受諾するリクエストを選択してください",
                             range(len(request_options)),
@@ -944,9 +1087,11 @@ def driver_page():
                         # 選択されたリクエストの詳細を表示
                         selected_req_id, selected_distance, selected_req_data = request_distances[selected_index]
                         estimated_minutes = estimate_arrival_time(selected_distance)
+                        facility_name = selected_req_data.get('facility_name', '未設定')
                         
                         col1, col2 = st.columns(2)
                         with col1:
+                            st.write(f"**施設名:** {facility_name}")
                             st.write(f"**リクエストID:** {selected_req_id[:8]}...")
                             st.write(f"**リクエスト時刻:** {selected_req_data['created_at'].strftime('%H:%M:%S')}")
                             st.write(f"**距離:** {selected_distance:.2f}km")
