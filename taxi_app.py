@@ -387,22 +387,55 @@ def frontend_page():
         if latest_facilities:
             st.session_state.facilities = latest_facilities
         
-        # 施設設定セクション（折りたたみ可能、デフォルトで開く）
-        with st.expander("🏢 施設情報設定", expanded=True):
+        # 施設設定セクション（美しいカードデザイン）
+        st.markdown("""
+        <style>
+        .facility-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            color: white;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        .facility-card h3 {
+            color: white;
+            margin-bottom: 1rem;
+        }
+        .facility-info-box {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+            backdrop-filter: blur(10px);
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # 現在の施設情報を表示（登録済みの場合）
+        current_facility_id = st.session_state.get('current_facility_id')
+        if current_facility_id and current_facility_id in st.session_state.facilities:
+            current_facility_info = st.session_state.facilities[current_facility_id]
+            st.markdown(f"""
+            <div class="facility-card">
+                <h3>🏢 現在の施設</h3>
+                <div class="facility-info-box">
+                    <p style="font-size: 1.3rem; font-weight: bold; margin: 0;">{current_facility_info.get('name', '未設定')}</p>
+                    <p style="font-size: 0.9rem; margin: 0.5rem 0 0 0; opacity: 0.9;">ID: {current_facility_id}</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # 施設設定セクション（折りたたみ可能）
+        with st.expander("⚙️ 施設情報を変更する", expanded=False):
             st.markdown("### 施設の登録・編集")
-            
-            # 既存の施設一覧を表示
-            if st.session_state.facilities:
-                st.markdown("**登録済み施設:**")
-                for facility_id, facility_info in st.session_state.facilities.items():
-                    st.markdown(f"- **{facility_info.get('name', '未設定')}** (ID: {facility_id})")
-                st.markdown("---")
+            st.info("💡 施設IDと施設名を入力して登録すると、自動的にこの端末で使用されます")
             
             col1, col2 = st.columns(2)
             with col1:
-                facility_id_input = st.text_input("施設ID", placeholder="例: facility_001", key="facility_id_input")
+                facility_id_input = st.text_input("施設ID", placeholder="例: facility_001", key="facility_id_input", value=current_facility_id if current_facility_id else "")
             with col2:
-                facility_name_input = st.text_input("施設名", placeholder="例: ホテルABC", key="facility_name_input")
+                facility_name_input = st.text_input("施設名", placeholder="例: ホテルABC", key="facility_name_input", value=current_facility_info.get('name', '') if current_facility_id and current_facility_id in st.session_state.facilities else "")
             
             col3, col4 = st.columns(2)
             with col3:
@@ -417,54 +450,41 @@ def frontend_page():
                             'lon': st.session_state.front_lon
                         }
                         save_facilities(st.session_state.facilities)
-                        st.success(f"✅ 施設「{facility_name_input}」を登録しました")
+                        # 登録と同時に自動選択
+                        st.session_state.current_facility_id = facility_id_input
+                        st.session_state.current_facility_name = facility_name_input
+                        st.success(f"✅ 施設「{facility_name_input}」を登録しました。この端末で使用中です。")
                         time.sleep(0.5)
                         st.rerun()
                     else:
                         st.error("施設IDと施設名を入力してください")
             
             with col4:
-                if st.button("🗑️ 施設を削除", use_container_width=True):
-                    if facility_id_input and facility_id_input in st.session_state.facilities:
-                        del st.session_state.facilities[facility_id_input]
+                if st.button("🗑️ この施設を削除", use_container_width=True, disabled=not current_facility_id):
+                    if current_facility_id and current_facility_id in st.session_state.facilities:
+                        del st.session_state.facilities[current_facility_id]
                         save_facilities(st.session_state.facilities)
-                        st.success(f"✅ 施設ID「{facility_id_input}」を削除しました")
+                        st.session_state.current_facility_id = None
+                        st.session_state.current_facility_name = None
+                        st.success(f"✅ 施設を削除しました")
                         time.sleep(0.5)
                         st.rerun()
                     else:
-                        st.error("削除する施設IDを入力してください")
-            
-            st.markdown("---")
-            st.markdown("### 使用する施設を選択")
-            
-            # 施設選択
-            if st.session_state.facilities:
-                facility_options = {f"{info.get('name', '未設定')} (ID: {fid})": fid 
-                                   for fid, info in st.session_state.facilities.items()}
-                selected_facility_display = st.selectbox(
-                    "この端末で使用する施設を選択",
-                    options=list(facility_options.keys()),
-                    key="facility_selector"
-                )
-                selected_facility_id = facility_options[selected_facility_display]
-                st.session_state.current_facility_id = selected_facility_id
-                st.session_state.current_facility_name = st.session_state.facilities[selected_facility_id].get('name', '未設定')
-                
-                # 選択した施設の位置情報を更新
-                facility_info = st.session_state.facilities[selected_facility_id]
+                        st.error("削除する施設がありません")
+        
+        # 施設が未登録の場合の初期化
+        if not current_facility_id:
+            st.session_state.current_facility_id = None
+            st.session_state.current_facility_name = None
+        else:
+            # 現在の施設の位置情報を更新
+            if current_facility_id in st.session_state.facilities:
+                facility_info = st.session_state.facilities[current_facility_id]
                 st.session_state.front_lat = facility_info.get('lat', 35.6762)
                 st.session_state.front_lon = facility_info.get('lon', 139.6503)
-            else:
-                st.info("💡 まず施設を登録してください")
-                st.session_state.current_facility_id = None
-                st.session_state.current_facility_name = None
         
         # メインコンテナ（上部に配置、中央揃え）
         st.markdown('<div class="taxi-main-container">', unsafe_allow_html=True)
-        
-        # 現在選択されている施設名を表示
-        if st.session_state.get('current_facility_name'):
-            st.markdown(f'<div style="text-align: center; font-size: 1.2rem; margin-bottom: 0.5rem; color: #666;">🏢 {st.session_state.current_facility_name}</div>', unsafe_allow_html=True)
         
         st.markdown('<div class="taxi-title">🚕 takutakutaxi</div>', unsafe_allow_html=True)
         
