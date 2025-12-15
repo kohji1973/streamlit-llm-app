@@ -3,6 +3,10 @@ langchain
 langchain-openai
 python-dotenv
 openai
+qrcode[pil]
+Pillow
+
+
 
 
 
